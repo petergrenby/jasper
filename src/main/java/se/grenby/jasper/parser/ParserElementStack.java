@@ -40,13 +40,16 @@ public class ParserElementStack {
         parsedStack.push(new ParserElementTextWrapper());
     }
 
-    public void pushPrimitive(JSchemaValue schemaValue) {
-        parsedStack.push(new ParserElementPrimitiveWrapper(schemaValue));
-
+    public void pushPrimitive(JSchemaValue schemaValue, char ch) {
+        ParserElementPrimitiveWrapper primitiveWrapper = new ParserElementPrimitiveWrapper(schemaValue);
+        primitiveWrapper.addChar(ch);
+        parsedStack.push(primitiveWrapper);
     }
 
-    public void pushNull() {
-        parsedStack.push(new ParserElementNullWrapper());
+    public void pushNull(char ch) {
+        ParserElementNullWrapper nullWrapper = new ParserElementNullWrapper();
+        nullWrapper.validate(ch);
+        parsedStack.push(nullWrapper);
 
     }
 

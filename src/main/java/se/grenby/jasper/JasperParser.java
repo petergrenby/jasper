@@ -4,52 +4,35 @@ import se.grenby.jasper.parser.*;
 import se.grenby.jasper.schema.*;
 import se.grenby.jasper.json.JsonDataObject;
 
-import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class JasperParser {
-
-    private static final char STRING_DELIMITER = '\"';
-    private static final char MAP_BEGIN_DELIMITER = '{';
-    private static final char MAP_KEY_VALUE_DELIMITER = ':';
-    private static final char MAP_END_DELIMITER = '}';
-    private static final char LIST_BEGIN_DELIMITER = '[';
-    private static final char LIST_END_DELIMITER = ']';
-    private static final char ITEM_DELIMITER = ',';
-
-    private final Set<Character> delimiters = new HashSet<>();
 
     private final JSchemaObject rootSchema;
 
     public JasperParser(JSchemaObject rootSchema) {
         this.rootSchema = rootSchema;
-
-        delimiters.add(STRING_DELIMITER);
-        delimiters.add(MAP_BEGIN_DELIMITER);
-        delimiters.add(MAP_KEY_VALUE_DELIMITER);
-        delimiters.add(MAP_END_DELIMITER);
-        delimiters.add(LIST_BEGIN_DELIMITER);
-        delimiters.add(LIST_END_DELIMITER);
-        delimiters.add(ITEM_DELIMITER);
     }
 
     public JsonDataObject parse(String json) {
+        ParserJsonWrapper jClob = new ParserJsonWrapper(json);
+
         AtomicReference<JsonDataObject> rootObject = new AtomicReference<>();
         ParserElementStack stack = new ParserElementStack();
 
-        json.chars().forEach(c -> {
-            char ch = (char) c;
+        while (jClob.hasNext()) {
+            ParserCharacterWrapper jc = jClob.next();
             if (stack.empty()) {
-                if (ch == MAP_BEGIN_DELIMITER) {
+                if (jc.isMapBeginDelimiter()) {
                     stack.pushMap((JSchemaMap) rootSchema);
-                } else if (ch == LIST_BEGIN_DELIMITER) {
+                } else if (jc.isListBeginDelimiter()) {
                     stack.pushList((JSchemaList) rootSchema);
-                } else if (!Character.isWhitespace(c)) {
-                    throw new RuntimeException("char " + ch + " top " + stack.peek().getParserElement());
+                } else if (!jc.isWhitespace()) {
+                    throw new RuntimeException("char " + jc.charValue() + " top " + stack.peek().getParserElement());
                 }
             } else {
                 if (stack.isTopPrimitive()) {
-                    if (delimiters.contains(ch) || Character.isWhitespace(ch)) {
+                    if (jc.isDelimiter() || jc.isWhitespace()) {
                         ParserElementPrimitiveWrapper primitive = (ParserElementPrimitiveWrapper) stack.pop();
                         if (stack.isTopKeyValue()) {
                             ParserElementKeyValueWrapper keyValue = (ParserElementKeyValueWrapper) stack.pop();
@@ -62,143 +45,107 @@ public class JasperParser {
                             list.getList().add(sv.parseValue(primitive.getText()));
                         }
                     } else {
-                        ((ParserElementTextWrapper) stack.peek()).addChar(ch);
+                        ((ParserElementTextWrapper) stack.peek()).addChar(jc.charValue());
                     }
                 }
 
                 if (stack.isTopMap()) {
-                    switch (ch) {
-                        case STRING_DELIMITER: {
-                            stack.pushKey();
-                            break;
-                        }
-                        case MAP_END_DELIMITER: {
-                            ParserElementMapWrapper map = (ParserElementMapWrapper) stack.pop();
-                            if (stack.empty()) {
-                                rootObject.set(map.getMap());
+                    if (jc.isStringDelimiter()) {
+                        stack.pushKey();
+                    } else if (jc.isMapEndDelimiter()) {
+                        ParserElementMapWrapper map = (ParserElementMapWrapper) stack.pop();
+                        if (stack.empty()) {
+                            rootObject.set(map.getMap());
+                        } else {
+                            if (stack.isTopKeyValue()) {
+                                ParserElementKeyValueWrapper keyValue = (ParserElementKeyValueWrapper) stack.pop();
+                                ParserElementMapWrapper upperMap = (ParserElementMapWrapper) stack.peek();
+                                upperMap.getMap().put(keyValue.getKey(), map.getMap());
+                            } else if (stack.isTopList()) {
+                                ParserElementListWrapper list = (ParserElementListWrapper) stack.peek();
+                                list.getList().add(map.getMap());
                             } else {
-                                if (stack.isTopKeyValue()) {
-                                    ParserElementKeyValueWrapper keyValue = (ParserElementKeyValueWrapper) stack.pop();
-                                    ParserElementMapWrapper upperMap = (ParserElementMapWrapper) stack.peek();
-                                    upperMap.getMap().put(keyValue.getKey(), map.getMap());
-                                } else if (stack.isTopList()) {
-                                    ParserElementListWrapper list = (ParserElementListWrapper) stack.peek();
-                                    list.getList().add(map.getMap());
-                                } else {
-                                    throw new RuntimeException("char " + ch + " top " + stack.peek().getParserElement());
-                                }
+                                throw new RuntimeException("char " + jc.charValue() + " top " + stack.peek().getParserElement());
                             }
-
-                            break;
                         }
-                        case ITEM_DELIMITER: {
-                            break;
-                        }
-                        case MAP_BEGIN_DELIMITER:
-                        case LIST_BEGIN_DELIMITER:
-                        case MAP_KEY_VALUE_DELIMITER:
-                        case LIST_END_DELIMITER: {
-                            throw new RuntimeException("char " + ch + " top " + stack.peek().getParserElement());
-                        }
-                        default:
-                            if (!Character.isWhitespace(ch))
-                                throw new RuntimeException("char " + ch + " top " + stack.peek().getParserElement());
+                    } else if (!jc.isItemDelimiter() && !jc.isWhitespace()) {
+                        throw new RuntimeException("char " + jc.charValue() + " top " + stack.peek().getParserElement());
                     }
                 } else if (stack.isTopList()) {
-                    switch (ch) {
-                        case STRING_DELIMITER: {
-                            stack.pushText();
-                            break;
-                        }
-                        case MAP_BEGIN_DELIMITER: {
-                            JSchemaList schemaList = ((ParserElementListWrapper) stack.peek()).getSchema();
-                            stack.pushMap((JSchemaMap) schemaList.getSubType());
-                            break;
-                        }
-                        case LIST_BEGIN_DELIMITER: {
-                            JSchemaList schemaList = ((ParserElementListWrapper) stack.peek()).getSchema();
-                            stack.pushList((JSchemaList) schemaList.getSubType());
-                            break;
-                        }
-                        case LIST_END_DELIMITER: {
-                            ParserElementListWrapper list = (ParserElementListWrapper) stack.pop();
-                            if (stack.empty()) {
-                                rootObject.set(list.getList());
+                    if (jc.isStringDelimiter()) {
+                        stack.pushText();
+                    } else if (jc.isMapBeginDelimiter()) {
+                        JSchemaList schemaList = ((ParserElementListWrapper) stack.peek()).getSchema();
+                        stack.pushMap((JSchemaMap) schemaList.getSubType());
+                    } else if (jc.isListBeginDelimiter()) {
+                        JSchemaList schemaList = ((ParserElementListWrapper) stack.peek()).getSchema();
+                        stack.pushList((JSchemaList) schemaList.getSubType());
+                    } else if (jc.isListEndDelimiter()) {
+                        ParserElementListWrapper list = (ParserElementListWrapper) stack.pop();
+                        if (stack.empty()) {
+                            rootObject.set(list.getList());
+                        } else {
+                            if (stack.isTopKeyValue()) {
+                                ParserElementKeyValueWrapper keyValue = (ParserElementKeyValueWrapper) stack.pop();
+                                ParserElementMapWrapper map = (ParserElementMapWrapper) stack.peek();
+                                map.getMap().put(keyValue.getKey(), list.getList());
+                            } else if (stack.isTopList()) {
+                                ParserElementListWrapper upperList = (ParserElementListWrapper) stack.peek();
+                                upperList.getList().add(list.getList());
                             } else {
-                                if (stack.isTopKeyValue()) {
-                                    ParserElementKeyValueWrapper keyValue = (ParserElementKeyValueWrapper) stack.pop();
-                                    ParserElementMapWrapper map = (ParserElementMapWrapper) stack.peek();
-                                    map.getMap().put(keyValue.getKey(), list.getList());
-                                } else if (stack.isTopList()) {
-                                    ParserElementListWrapper upperList = (ParserElementListWrapper) stack.peek();
-                                    upperList.getList().add(list.getList());
-                                } else {
-                                    throw new RuntimeException();
-                                }
+                                throw new RuntimeException();
                             }
-
-                            break;
                         }
-                        case ITEM_DELIMITER: {
-                            break;
+                    } else if (jc.isMapKeyValueDelimiter() || jc.isMapEndDelimiter()) {
+                        throw new RuntimeException("char " + jc.charValue() + " top " + stack.peek().getParserElement());
+                    } else if (!jc.isItemDelimiter() && !jc.isWhitespace()) {
+                        if (jc.charValue() != 'n') {
+                            JSchemaList schemaList = ((ParserElementListWrapper) stack.peek()).getSchema();
+                            stack.pushPrimitive((JSchemaValue) schemaList.getSubType(), jc.charValue());
+                        } else {
+                            stack.pushNull(jc.charValue());
                         }
-                        case MAP_KEY_VALUE_DELIMITER:
-                        case MAP_END_DELIMITER:
-                            throw new RuntimeException("char " + ch + " top " + stack.peek().getParserElement());
-                        default:
-                            if (!Character.isWhitespace(ch)) {
-                                if (ch != 'n') {
-                                    JSchemaList schemaList = ((ParserElementListWrapper) stack.peek()).getSchema();
-                                    stack.pushPrimitive((JSchemaValue) schemaList.getSubType());
-                                    ((ParserElementTextWrapper) stack.peek()).addChar(ch);
-                                } else {
-                                    stack.pushNull();
-                                    ((ParserElementNullWrapper) stack.peek()).valid(ch);
-                                }
-                            }
                     }
                 } else if (stack.isTopKeyValue()) {
-                    if (ch == STRING_DELIMITER) {
+                    if (jc.isStringDelimiter()) {
                         stack.pushText();
-                    } else if (ch == MAP_KEY_VALUE_DELIMITER) {
+                    } else if (jc.isMapKeyValueDelimiter()) {
                         ParserElementKeyValueWrapper kv = (ParserElementKeyValueWrapper) stack.peek();
                         if (kv.getKey() == null)
-                            throw new RuntimeException("Char " + ch + " with stack " + stack.toString());
-                    } else if (ch == MAP_BEGIN_DELIMITER) {
+                            throw new RuntimeException("Char " + jc.charValue() + " with stack " + stack.toString());
+                    } else if (jc.isMapBeginDelimiter()) {
                         JSchemaObject so = ((ParserElementKeyValueWrapper) stack.peek()).getSchema();
                         stack.pushMap((JSchemaMap) so);
-                    } else if (ch == LIST_BEGIN_DELIMITER) {
+                    } else if (jc.isListBeginDelimiter()) {
                         JSchemaObject so = ((ParserElementKeyValueWrapper) stack.peek()).getSchema();
                         stack.pushList((JSchemaList) so);
-                    } else if (delimiters.contains(ch)) {
-                        throw new RuntimeException("Char " + ch + " with stack " + stack.toString());
+                    } else if (jc.isDelimiter()) {
+                        throw new RuntimeException("Char " + jc.charValue() + " with stack " + stack.toString());
                     } else {
-                        if (!Character.isWhitespace(ch)) {
-                            if (Character.isDigit(ch) || ch == 't' || ch == 'f') {
+                        if (!jc.isWhitespace()) {
+                            if (jc.isDigit() || jc.isFirstCharInBoolean()) {
                                 JSchemaObject so = ((ParserElementKeyValueWrapper) stack.peek()).getSchema();
-                                stack.pushPrimitive((JSchemaValue) so);
-                                ((ParserElementTextWrapper) stack.peek()).addChar(ch);
-                            } else if (ch == 'n') {
-                                stack.pushNull();
-                                ((ParserElementNullWrapper) stack.peek()).valid(ch);
+                                stack.pushPrimitive((JSchemaValue) so, jc.charValue());
+                            } else if (jc.isFirstCharInNull()) {
+                                stack.pushNull(jc.charValue());
                             } else {
-                                throw new RuntimeException("Char " + ch + " with stack " + stack.toString());
+                                throw new RuntimeException("Char " + jc.charValue() + " with stack " + stack.toString());
                             }
                         }
                     }
                 } else if (stack.isTopKey()) {
-                    if (ch == STRING_DELIMITER) {
+                    if (jc.isStringDelimiter()) {
                         ParserElementKeyWrapper key = (ParserElementKeyWrapper) stack.pop();
                         ParserElementMapWrapper map = (ParserElementMapWrapper) stack.peek();
                         JSchemaObject so = map.getSchema().getPropertyType(key.getText());
                         stack.pushKeyValue(key.getText(), so);
-                    } else if (delimiters.contains(ch)) {
-                        throw new RuntimeException("Char " + ch + " with stack " + stack.toString());
+                    } else if (jc.isDelimiter()) {
+                        throw new RuntimeException("Char " + jc.charValue() + " with stack " + stack.toString());
                     } else {
-                        ((ParserElementTextWrapper) stack.peek()).addChar(ch);
+                        ((ParserElementTextWrapper) stack.peek()).addChar(jc.charValue());
                     }
                 } else if (stack.isTopText()) {
-                    if (ch == STRING_DELIMITER) {
+                    if (jc.isStringDelimiter()) {
                         ParserElementTextWrapper text = (ParserElementTextWrapper) stack.pop();
                         if (stack.isTopKeyValue()) {
                             ParserElementKeyValueWrapper keyValue = (ParserElementKeyValueWrapper) stack.pop();
@@ -216,15 +163,14 @@ public class JasperParser {
                                 throw new RuntimeException();
                             }
                         }
-                    } else if (delimiters.contains(ch)) {
-                        throw new RuntimeException("Char " + ch + " with stack " + stack.toString());
+                    } else if (jc.isDelimiter()) {
+                        throw new RuntimeException("Char " + jc.charValue() + " with stack " + stack.toString());
                     } else {
-                        ((ParserElementTextWrapper) stack.peek()).addChar(ch);
+                        ((ParserElementTextWrapper) stack.peek()).addChar(jc.charValue());
                     }
-
                 } else if (stack.isTopNull()) {
                     ParserElementNullWrapper nullWrapper = ((ParserElementNullWrapper) stack.peek());
-                    if (nullWrapper.valid(ch)) {
+                    if (nullWrapper.validate(jc.charValue())) {
                         if (nullWrapper.finished()) {
                             stack.pop();
                             if (stack.isTopKeyValue()) {
@@ -234,16 +180,16 @@ public class JasperParser {
                                     map.getMap().put(keyValue.getKey(), null);
                                 }
                             } else {
-                                throw new RuntimeException("Char " + ch + " with stack " + stack.toString());
+                                throw new RuntimeException("Char " + jc.charValue() + " with stack " + stack.toString());
                             }
                         }
                     } else {
-                        throw new RuntimeException("Char " + ch + " with stack " + stack.toString());
+                        throw new RuntimeException("Char " + jc.charValue() + " with stack " + stack.toString());
                     }
                 }
             }
+        }
 
-        });
         return rootObject.get();
     }
 

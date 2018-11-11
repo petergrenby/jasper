@@ -38,6 +38,8 @@ public class ComplexParserTest {
 
     @Test
     public void testSchema() {
+        System.out.println(JSON_TEXT);
+
         JSchemaMap m = new JSchemaMap();
         m.text("firstName");
         m.text("lastName");
