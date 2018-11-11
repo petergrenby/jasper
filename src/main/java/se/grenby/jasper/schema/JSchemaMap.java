@@ -30,7 +30,7 @@ public class JSchemaMap extends JSchemaObject {
         return this;
     }
 
-    public JSchemaObject getSubType(String key) {
+    public JSchemaObject getPropertyType(String key) {
         return jsMap.get(key);
     }
 }

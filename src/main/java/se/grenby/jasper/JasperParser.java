@@ -69,7 +69,7 @@ public class JasperParser {
                 if (stack.isTopMap()) {
                     switch (ch) {
                         case STRING_DELIMITER: {
-                            stack.pushKeyValue();
+                            stack.pushKey();
                             break;
                         }
                         case MAP_END_DELIMITER: {
@@ -91,14 +91,14 @@ public class JasperParser {
 
                             break;
                         }
+                        case ITEM_DELIMITER: {
+                            break;
+                        }
                         case MAP_BEGIN_DELIMITER:
                         case LIST_BEGIN_DELIMITER:
                         case MAP_KEY_VALUE_DELIMITER:
                         case LIST_END_DELIMITER: {
                             throw new RuntimeException("char " + ch + " top " + stack.peek().getParserElement());
-                        }
-                        case ITEM_DELIMITER: {
-                            break;
                         }
                         default:
                             if (!Character.isWhitespace(ch))
@@ -189,17 +189,14 @@ public class JasperParser {
                 } else if (stack.isTopKey()) {
                     if (ch == STRING_DELIMITER) {
                         ParserElementKeyWrapper key = (ParserElementKeyWrapper) stack.pop();
-                        ParserElementKeyValueWrapper kv = (ParserElementKeyValueWrapper) stack.peek();
-                        ParserElementMapWrapper map = (ParserElementMapWrapper) stack.peek2();
-                        JSchemaObject so = map.getSchema().getSubType(key.getText());
-                        kv.setKey(key.getText());
-                        kv.setSchema(so);
+                        ParserElementMapWrapper map = (ParserElementMapWrapper) stack.peek();
+                        JSchemaObject so = map.getSchema().getPropertyType(key.getText());
+                        stack.pushKeyValue(key.getText(), so);
                     } else if (delimiters.contains(ch)) {
                         throw new RuntimeException("Char " + ch + " with stack " + stack.toString());
                     } else {
                         ((ParserElementTextWrapper) stack.peek()).addChar(ch);
                     }
-
                 } else if (stack.isTopText()) {
                     if (ch == STRING_DELIMITER) {
                         ParserElementTextWrapper text = (ParserElementTextWrapper) stack.pop();

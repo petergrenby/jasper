@@ -2,6 +2,7 @@ package se.grenby.jasper.parser;
 
 import se.grenby.jasper.schema.JSchemaList;
 import se.grenby.jasper.schema.JSchemaMap;
+import se.grenby.jasper.schema.JSchemaObject;
 import se.grenby.jasper.schema.JSchemaValue;
 
 import java.util.Stack;
@@ -23,9 +24,16 @@ public class ParserElementStack {
         parsedStack.push(new ParserElementListWrapper(schemaList));
     }
 
-    public void pushKeyValue() {
-        parsedStack.push(new ParserElementKeyValueWrapper());
+    public void pushKey() {
         parsedStack.push(new ParserElementKeyWrapper());
+    }
+
+    public void pushKeyValue(String key, JSchemaObject so) {
+        ParserElementKeyValueWrapper kv = new ParserElementKeyValueWrapper();
+        kv.setKey(key);
+        kv.setSchema(so);
+
+        parsedStack.push(kv);
     }
 
     public void pushText() {
@@ -76,10 +84,6 @@ public class ParserElementStack {
 
     public ParserElementWrapper peek() {
         return parsedStack.peek();
-    }
-
-    public ParserElementWrapper peek2() {
-        return parsedStack.elementAt(parsedStack.size() - 2);
     }
 
     public boolean empty() {

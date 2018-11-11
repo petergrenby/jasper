@@ -6,7 +6,7 @@ import se.grenby.jasper.schema.JSchemaMap;
 
 import static se.grenby.jasper.schema.JSchemaValue.*;
 
-public class JasperParserTest {
+public class ComplexParserTest {
     private final String JSON_TEXT = "{\n" +
             "  \"firstName\": \"John\",\n" +
             "  \"lastName\": \"Smith\",\n" +
