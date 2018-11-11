@@ -1,4 +1,4 @@
-package se.grenby.jasper.parser;
+package se.grenby.jasper.stack;
 
 import se.grenby.jasper.schema.JSchemaList;
 import se.grenby.jasper.schema.JSchemaMap;
@@ -8,28 +8,28 @@ import se.grenby.jasper.schema.JSchemaValue;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
-public class ParserElementStack {
+public class ParserStack {
 
-    private final Stack<ParserElementWrapper> parsedStack = new Stack<>();
+    private final Stack<StackElementWrapper> parsedStack = new Stack<>();
 
-    public ParserElementStack() {
+    public ParserStack() {
 
     }
 
     public void pushMap(JSchemaMap schemaMap) {
-        parsedStack.push(new ParserElementMapWrapper(schemaMap));
+        parsedStack.push(new StackElementMapWrapper(schemaMap));
     }
 
     public void pushList(JSchemaList schemaList) {
-        parsedStack.push(new ParserElementListWrapper(schemaList));
+        parsedStack.push(new StackElementListWrapper(schemaList));
     }
 
     public void pushKey() {
-        parsedStack.push(new ParserElementKeyWrapper());
+        parsedStack.push(new StackElementKeyWrapper());
     }
 
     public void pushKeyValue(String key, JSchemaObject so) {
-        ParserElementKeyValueWrapper kv = new ParserElementKeyValueWrapper();
+        StackElementKeyValueWrapper kv = new StackElementKeyValueWrapper();
         kv.setKey(key);
         kv.setSchema(so);
 
@@ -37,17 +37,17 @@ public class ParserElementStack {
     }
 
     public void pushText() {
-        parsedStack.push(new ParserElementTextWrapper());
+        parsedStack.push(new StackElementTextWrapper());
     }
 
     public void pushPrimitive(JSchemaValue schemaValue, char ch) {
-        ParserElementPrimitiveWrapper primitiveWrapper = new ParserElementPrimitiveWrapper(schemaValue);
+        StackElementPrimitiveWrapper primitiveWrapper = new StackElementPrimitiveWrapper(schemaValue);
         primitiveWrapper.addChar(ch);
         parsedStack.push(primitiveWrapper);
     }
 
     public void pushNull(char ch) {
-        ParserElementNullWrapper nullWrapper = new ParserElementNullWrapper();
+        StackElementNullWrapper nullWrapper = new StackElementNullWrapper();
         nullWrapper.validate(ch);
         parsedStack.push(nullWrapper);
 
@@ -81,11 +81,11 @@ public class ParserElementStack {
         return parsedStack.peek().isNull();
     }
 
-    public ParserElementWrapper pop() {
+    public StackElementWrapper pop() {
         return parsedStack.pop();
     }
 
-    public ParserElementWrapper peek() {
+    public StackElementWrapper peek() {
         return parsedStack.peek();
     }
 
@@ -95,7 +95,7 @@ public class ParserElementStack {
 
     public String toString() {
         return parsedStack.stream()
-                .map(e -> e.getParserElement().toString())
+                .map(e -> e.getStackElement().toString())
                 .collect(Collectors.joining(", "));
     }
 

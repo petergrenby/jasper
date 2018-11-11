@@ -1,15 +1,15 @@
-package se.grenby.jasper.parser;
+package se.grenby.jasper.stack;
 
 import se.grenby.jasper.json.JsonDataList;
 import se.grenby.jasper.schema.JSchemaList;
 
-public class ParserElementListWrapper extends ParserElementWrapper {
+public class StackElementListWrapper extends StackElementWrapper {
 
     private final JsonDataList list = new JsonDataList();
     private final JSchemaList schema;
 
-    public ParserElementListWrapper(JSchemaList schema) {
-        super(ParserElement.LIST);
+    public StackElementListWrapper(JSchemaList schema) {
+        super(StackElement.LIST);
         this.schema = schema;
     }
 

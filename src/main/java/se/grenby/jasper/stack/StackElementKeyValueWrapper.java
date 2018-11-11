@@ -1,15 +1,15 @@
-package se.grenby.jasper.parser;
+package se.grenby.jasper.stack;
 
 import se.grenby.jasper.schema.JSchemaObject;
 
-public class ParserElementKeyValueWrapper extends ParserElementWrapper {
+public class StackElementKeyValueWrapper extends StackElementWrapper {
 
     private String key;
     private JSchemaObject schema;
 
 
-    public ParserElementKeyValueWrapper() {
-        super(ParserElement.KEY_VALUE);
+    public StackElementKeyValueWrapper() {
+        super(StackElement.KEY_VALUE);
     }
 
     public String getKey() {

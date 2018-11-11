@@ -1,4 +1,4 @@
-package se.grenby.jasper;
+package se.grenby.jasper.parser;
 
 
 public class ParserJsonWrapper {

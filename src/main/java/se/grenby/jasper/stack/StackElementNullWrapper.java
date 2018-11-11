@@ -1,13 +1,13 @@
-package se.grenby.jasper.parser;
+package se.grenby.jasper.stack;
 
-public class ParserElementNullWrapper extends ParserElementWrapper {
+public class StackElementNullWrapper extends StackElementWrapper {
 
     private static final String NULL = "null";
     private static final char[] NULL_CHARS = NULL.toCharArray();
     private int index = 0;
 
-    public ParserElementNullWrapper() {
-        super(ParserElement.NULL);
+    public StackElementNullWrapper() {
+        super(StackElement.NULL);
     }
 
     public boolean validate(char ch) {

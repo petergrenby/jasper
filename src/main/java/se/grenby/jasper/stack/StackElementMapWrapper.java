@@ -1,15 +1,15 @@
-package se.grenby.jasper.parser;
+package se.grenby.jasper.stack;
 
 import se.grenby.jasper.json.JsonDataMap;
 import se.grenby.jasper.schema.JSchemaMap;
 
-public class ParserElementMapWrapper extends ParserElementWrapper {
+public class StackElementMapWrapper extends StackElementWrapper {
 
     private final JsonDataMap map = new JsonDataMap();
     private final JSchemaMap schema;
 
-    public ParserElementMapWrapper(JSchemaMap schema) {
-        super(ParserElement.MAP);
+    public StackElementMapWrapper(JSchemaMap schema) {
+        super(StackElement.MAP);
         this.schema = schema;
     }
 
